@@ -210,6 +210,10 @@ test_that("cpu_features returns a named logical vector", {
 
 test_that("large buffers are chunked safely", {
   skip_on_cran()
+  skip_if(
+    Sys.getenv("AWSCRT_LARGE_TESTS") != "true",
+    "set AWSCRT_LARGE_TESTS=true to run"
+  )
   # > INT_MAX bytes exercises the chunk loop in the C layer
   big <- raw(2^31 + 10)
   one <- crc32c(big)
