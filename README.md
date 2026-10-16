@@ -14,6 +14,15 @@ produces (as big-endian bytes), which is what S3 flexible checksums use.
 Only `aws-checksums` (and the small part of `aws-c-common` it needs) is vendored. There is
 no HTTP, TLS, event loop or threading, and nothing is downloaded at install time.
 
+## Installation
+
+```r
+# install.packages("pak")
+pak::pak("paws-r/aws-crt-r")
+```
+
+## Usage:
+
 ```r
 library(awscrt)
 

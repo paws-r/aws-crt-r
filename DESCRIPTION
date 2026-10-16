@@ -12,7 +12,8 @@ Description: Computes CRC32, CRC32C and CRC64NVME checksums using the
     big-endian raw vectors, matching the bytes the 'S3' flexible-checksum
     headers are built from, and can be chained for incremental hashing.
 License: Apache License (>= 2)
-URL: https://github.com/paws-r/aws-crt-r
+URL: https://github.com/paws-r/aws-crt-r, https://paws-r.r-universe.dev/awscrt
+BugReports: https://github.com/paws-r/aws-crt-r/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Suggests:
