@@ -1,0 +1,165 @@
+#!/bin/sh
+# Feature detection for the vendored aws-checksums / aws-c-common sources.
+# Generates src/generated/aws/common/config.h and src/Makevars (from
+# src/Makevars.in). Anything that cannot be detected falls back to the portable
+# software implementation.
+set -u
+
+: "${R_HOME:=$(R RHOME)}"
+CC=$("${R_HOME}/bin/R" CMD config CC)
+CFLAGS=$("${R_HOME}/bin/R" CMD config CFLAGS)
+CPPFLAGS=$("${R_HOME}/bin/R" CMD config CPPFLAGS)
+
+tmp=$(mktemp -d 2>/dev/null || { d=./.configure.$$; mkdir "$d" && echo "$d"; })
+trap 'rm -rf "$tmp"' EXIT
+
+# try_compile "<flags>" <<program on stdin>>  -> exit status 0 if it compiles and links
+try_compile() {
+  cat > "$tmp/t.c"
+  # shellcheck disable=SC2086
+  $CC $CPPFLAGS $CFLAGS $1 -o "$tmp/t.out" "$tmp/t.c" >/dev/null 2>&1
+}
+
+macros=$($CC $CFLAGS -E -dM - < /dev/null 2>/dev/null)
+has_macro() { echo "$macros" | grep -q "^#define $1 "; }
+
+x86_64=no; arm64=no; windows=no; apple=no; linux=no
+has_macro __x86_64__ && x86_64=yes
+has_macro __aarch64__ && arm64=yes
+has_macro _WIN32 && windows=yes
+has_macro __APPLE__ && apple=yes
+has_macro __linux__ && linux=yes
+
+# Respect an explicit opt-out, e.g. R CMD INSTALL --configure-vars='AWSCRT_SOFTWARE_ONLY=1'
+use_ext=yes
+[ -n "${AWSCRT_SOFTWARE_ONLY:-}" ] && use_ext=no
+# aws-c-common disables CPU extensions under MinGW (gcc bug 54412: misaligned AVX2 stack accesses).
+[ "$windows" = yes ] && use_ext=no
+
+defs=""
+add_def() { defs="$defs#define $1
+"; }
+
+objs="awscrt.o init.o \
+aws-checksums/source/crc32.o aws-checksums/source/crc64.o aws-checksums/source/crc_sw.o \
+aws-checksums/source/crc64_sw.o aws-checksums/source/crc_util.o"
+cpuid_src=aws-c-common/source/arch/generic/cpuid
+target_rules=""
+impl="software"
+
+try_compile "" <<'EOT' && add_def AWS_HAVE_GCC_OVERFLOW_MATH_EXTENSIONS
+#include <stdbool.h>
+int main(void) { int out; return __builtin_mul_overflow(1, 2, &out) ? 1 : 0; }
+EOT
+
+if [ "$x86_64" = yes ]; then
+  add_def AWS_ARCH_INTEL; add_def AWS_ARCH_INTEL_X64
+elif [ "$arm64" = yes ]; then
+  add_def AWS_ARCH_ARM64
+fi
+
+if [ "$use_ext" = yes ] && [ "$x86_64" = yes ]; then
+  AVX2="-mavx -mavx2"; AVX512="-mavx512f -mvpclmulqdq"; AVX512VL="-mavx512vl"; CLMUL="-mpclmul"; SSE42="-msse4.2"
+
+  have_asm=no
+  try_compile "" <<'EOT' && have_asm=yes
+int main(void) { int foo = 42, bar = 24; __asm__ __volatile__("":"=r"(foo):"r"(bar):"memory"); return foo; }
+EOT
+
+  [ "$have_asm" = yes ] && add_def AWS_HAVE_GCC_INLINE_ASM
+  have_avx2=no; have_avx512=no; have_clmul=no
+  try_compile "$AVX2 $SSE42" <<'EOT' && have_avx2=yes
+#include <immintrin.h>
+#include <emmintrin.h>
+#include <string.h>
+int main(void) { __m256i vec; memset(&vec, 0, sizeof(vec)); _mm256_shuffle_epi8(vec, vec);
+  _mm256_set_epi32(1,2,3,4,5,6,7,8); _mm256_permutevar8x32_epi32(vec, vec); return 0; }
+EOT
+  try_compile "$AVX512 $AVX512VL $AVX2 $CLMUL $SSE42" <<'EOT' && have_avx512=yes
+#include <immintrin.h>
+int main(void) { __m512 a = _mm512_setzero_ps(); (void)a; return 0; }
+EOT
+  try_compile "$AVX2 $CLMUL $SSE42" <<'EOT' && have_clmul=yes
+#include <wmmintrin.h>
+#include <emmintrin.h>
+int main(void) { __m128i a = _mm_setzero_si128(); __m128i b = _mm_setzero_si128();
+  __m128i r = _mm_clmulepi64_si128(a, b, 0x00); (void)r; return 0; }
+EOT
+  [ "$have_avx2" = yes ] && try_compile "$AVX2 $SSE42" <<'EOT' && add_def AWS_HAVE_MM256_EXTRACT_EPI64
+#include <immintrin.h>
+#include <string.h>
+int main(void) { __m256i vec; memset(&vec, 0, sizeof(vec)); return (int)_mm256_extract_epi64(vec, 2); }
+EOT
+  [ "$have_avx2" = yes ] && add_def AWS_HAVE_AVX2_INTRINSICS
+  [ "$have_avx512" = yes ] && add_def AWS_HAVE_AVX512_INTRINSICS
+  [ "$have_clmul" = yes ] && add_def AWS_HAVE_CLMUL
+
+  add_def AWS_USE_CPU_EXTENSIONS
+  impl="x86_64 (SSE4.2"
+  cpuid_src=aws-c-common/source/arch/intel/cpuid
+  objs="$objs aws-c-common/source/arch/intel/asm/cpuid.o"
+  p=aws-checksums/source/intel
+  if [ "$have_asm" = yes ]; then
+    objs="$objs $p/asm/crc32c_sse42_asm.o"
+    target_rules="$target_rules
+$p/asm/crc32c_sse42_asm.o: CFLAGS += $SSE42"
+  fi
+  uber="$SSE42"
+  if [ "$have_avx512" = yes ]; then
+    uber="$AVX512 $AVX512VL $AVX2 $uber"
+    objs="$objs $p/intrin/crc64nvme_avx512.o"
+    target_rules="$target_rules
+$p/intrin/crc64nvme_avx512.o: CFLAGS += $AVX512 $AVX512VL $AVX2 $CLMUL $SSE42"
+    impl="$impl, AVX-512"
+  fi
+  [ "$have_clmul" = yes ] && { uber="$CLMUL $uber"; impl="$impl, PCLMULQDQ"; }
+  objs="$objs $p/intrin/crc32c_sse42_avx512.o"
+  target_rules="$target_rules
+$p/intrin/crc32c_sse42_avx512.o: CFLAGS += $uber"
+  if [ "$have_clmul" = yes ]; then
+    objs="$objs $p/intrin/crc64nvme_clmul.o"
+    target_rules="$target_rules
+$p/intrin/crc64nvme_clmul.o: CFLAGS += $AVX2 $CLMUL $SSE42"
+  fi
+  impl="$impl)"
+
+elif [ "$use_ext" = yes ] && [ "$arm64" = yes ] && { [ "$apple" = yes ] || [ "$linux" = yes ]; }; then
+  ARMFLAG="-march=armv8-a+crc+crypto"
+  if try_compile "$ARMFLAG" <<'EOT'
+#include <arm_acle.h>
+#include <arm_neon.h>
+int main(void) { int crc = __crc32d(0, 1); poly64_t a = 1; poly128_t r = vmull_p64(a, a); (void)r; return crc; }
+EOT
+  then
+    add_def AWS_HAVE_ARMv8_1
+    add_def AWS_USE_CPU_EXTENSIONS
+    if [ "$apple" = yes ]; then cpuid_src=aws-c-common/source/arch/arm/darwin/cpuid
+    else cpuid_src=aws-c-common/source/arch/arm/auxv/cpuid; fi
+    p=aws-checksums/source/arm
+    # CPU features are enabled by pragmas in arm_crc.c; -march= would trip R CMD check.
+    objs="$objs arm_crc.o"
+    impl="arm64 (CRC, PMULL)"
+  fi
+fi
+objs="$objs $cpuid_src.o"
+
+mkdir -p src/generated/aws/common
+{
+  echo "/* Generated by ./configure; do not edit. */"
+  echo "#ifndef AWS_COMMON_CONFIG_H"
+  echo "#define AWS_COMMON_CONFIG_H"
+  printf "%s" "$defs"
+  echo "#endif"
+} > src/generated/aws/common/config.h
+
+vis=""
+if [ "$windows" = no ]; then
+  try_compile "-fvisibility=hidden" <<'EOT' && vis="-fvisibility=hidden"
+int main(void) { return 0; }
+EOT
+fi
+
+sed -e "s|@OBJECTS@|$objs|" -e "s|@VISIBILITY@|$vis|" src/Makevars.in > src/Makevars
+printf "%s\n" "$target_rules" >> src/Makevars
+
+echo "awscrt: using $impl implementation"

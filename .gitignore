@@ -1,0 +1,7 @@
+.Rproj.user
+src/Makevars
+src/generated/
+*.o
+*.so
+*.dll
+.codegraph/

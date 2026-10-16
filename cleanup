@@ -1,0 +1,3 @@
+#!/bin/sh
+rm -rf src/generated src/Makevars src/*.o src/*.so src/*.dll
+find src -name '*.o' -delete

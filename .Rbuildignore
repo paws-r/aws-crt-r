@@ -1,0 +1,12 @@
+^awscrt\.Rproj$
+^\.Rproj\.user$
+^awscrt-brief\.md$
+^tools$
+^\.github$
+^src/generated$
+^src/Makevars$
+^src/.*\.o$
+^src/.*\.so$
+^src/.*\.dll$
+^\.codegraph$
+^\.claude$

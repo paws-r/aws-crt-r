@@ -1,0 +1,16 @@
+awscrt bundles the following third-party code. See src/VENDORED.md for the
+exact upstream tags and commits.
+
+aws-checksums (src/aws-checksums/)
+  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+  License: Apache-2.0 (src/aws-checksums/LICENSE)
+  https://github.com/awslabs/aws-checksums
+
+aws-c-common (src/aws-c-common/)
+  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+  License: Apache-2.0 (src/aws-c-common/LICENSE, src/aws-c-common/NOTICE)
+  https://github.com/awslabs/aws-c-common
+  Only the CPU feature detection sources and the headers reachable from the
+  checksum code are included.
+
+The R code and the .Call binding layer are licensed under Apache-2.0 as well.

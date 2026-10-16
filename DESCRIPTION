@@ -1,0 +1,22 @@
+Package: awscrt
+Title: Hardware-Accelerated CRC Checksums from the AWS Common Runtime
+Version: 0.1.0
+Authors@R: c(
+    person("Dyfan", "Jones", , "dyfan.r.jones@gmail.com", role = c("aut", "cre")),
+    person("Amazon.com, Inc. or its affiliates", role = c("cph"),
+           comment = "Author of the bundled aws-checksums and aws-c-common libraries"))
+Description: Computes CRC32, CRC32C and CRC64NVME checksums using the
+    'aws-checksums' library from the AWS Common Runtime ('CRT'), with runtime
+    dispatch to hardware instructions (SSE4.2, PCLMULQDQ, AVX-512, ARMv8 CRC
+    and PMULL) and a portable software fallback. Results are returned as
+    big-endian raw vectors, matching the bytes the 'S3' flexible-checksum
+    headers are built from, and can be chained for incremental hashing.
+License: Apache License (>= 2)
+URL: https://github.com/awslabs/aws-crt-python
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+SystemRequirements: GNU make, C compiler
+Config/roxygen2/version: 8.1.0

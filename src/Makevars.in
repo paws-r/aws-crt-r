@@ -1,0 +1,4 @@
+# Generated into src/Makevars by ./configure
+PKG_CPPFLAGS = -I. -Igenerated -Iaws-checksums/include -Iaws-c-common/include
+PKG_CFLAGS = @VISIBILITY@
+OBJECTS = @OBJECTS@
