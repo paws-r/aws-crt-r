@@ -19,12 +19,30 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - {os: macos-latest,   r: 'release'}
-          - {os: windows-latest, r: 'release'}
-          - {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
-          - {os: ubuntu-latest,   r: 'release'}
-          - {os: ubuntu-latest,   r: 'oldrel-1'}
+          # Check Dev R versions
+          - { os: "ubuntu-latest", r: "devel" }
+          - { os: "macOS-latest", r: "devel" }
+          - { os: "windows-latest", r: "devel" }
 
+          # Check latest R versions
+          - { os: "ubuntu-latest", r: "latest" }
+          - { os: "macOS-latest", r: "latest" }
+          - { os: "windows-latest", r: "latest" }
+
+          # Check oldrel-1 versions of R
+          - { os: "ubuntu-latest", r: "oldrel-1" }
+          - { os: "macOS-latest", r: "oldrel-1" }
+          - { os: "windows-latest", r: "oldrel-1" }
+
+          # Check oldrel-2 versions of R
+          - { os: "ubuntu-latest", r: "oldrel-2" }
+          - { os: "macOS-latest", r: "oldrel-2" }
+          - { os: "windows-latest", r: "oldrel-2" }
+
+          # Check oldrel-3 versions of R
+          - { os: "ubuntu-latest", r: "oldrel-3" }
+          - { os: "macOS-latest", r: "oldrel-3" }
+          - { os: "windows-latest", r: "oldrel-3" }
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
