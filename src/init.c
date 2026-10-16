@@ -3,7 +3,6 @@
 #include <R.h>
 #include <Rinternals.h>
 #include <R_ext/Rdynload.h>
-#include <R_ext/Visibility.h>
 
 #include <aws/checksums/private/crc_util.h>
 
@@ -19,6 +18,16 @@ bool s_detected_avx512 = false;
 bool s_detected_clmul = false;
 bool s_detected_vpclmulqdq = false;
 
+/* R's attribute_visible is only defined when Rconfig.h sets
+ * HAVE_VISIBILITY_ATTRIBUTE, which older R builds do not. Under
+ * -fvisibility=hidden the init function would then be hidden and R would never
+ * register the routines, so use the compiler attribute directly. */
+#if defined(__GNUC__) || defined(__clang__)
+#  define AWSCRT_EXPORT __attribute__((visibility("default")))
+#else
+#  define AWSCRT_EXPORT
+#endif
+
 static const R_CallMethodDef call_methods[] = {
   {"awscrt_crc32", (DL_FUNC)&awscrt_crc32, 4},
   {"awscrt_crc32c", (DL_FUNC)&awscrt_crc32c, 4},
@@ -27,7 +36,7 @@ static const R_CallMethodDef call_methods[] = {
   {NULL, NULL, 0}
 };
 
-attribute_visible void R_init_awscrt(DllInfo *dll) {
+AWSCRT_EXPORT void R_init_awscrt(DllInfo *dll) {
   aws_checksums_init_detection_cache();
   aws_checksums_crc32_init();
   aws_checksums_crc64_init();
