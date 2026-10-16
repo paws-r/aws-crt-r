@@ -124,11 +124,29 @@ $p/intrin/crc64nvme_clmul.o: CFLAGS += $AVX2 $CLMUL $SSE42"
   impl="$impl)"
 
 elif [ "$use_ext" = yes ] && [ "$arm64" = yes ] && { [ "$apple" = yes ] || [ "$linux" = yes ]; }; then
-  ARMFLAG="-march=armv8-a+crc+crypto"
-  if try_compile "$ARMFLAG" <<'EOT'
+  # Probe with the same pragma pattern as arm_crc.c (not -march=), so toolchains whose
+  # arm_neon.h breaks under the pragma (e.g. Apple clang 16) fall back to software.
+  if try_compile "" <<'EOT'
+#if defined(__clang__)
+#    pragma clang attribute push(__attribute__((target("crc,crypto"))), apply_to = function)
+#elif defined(__GNUC__)
+#    pragma GCC push_options
+#    pragma GCC target("+crc+crypto")
+#endif
 #include <arm_acle.h>
 #include <arm_neon.h>
-int main(void) { int crc = __crc32d(0, 1); poly64_t a = 1; poly128_t r = vmull_p64(a, a); (void)r; return crc; }
+int main(void) {
+  int crc = __crc32d(0, 1);
+  poly64x2_t v = vdupq_n_p64(1);
+  poly128_t r = vmull_high_p64(v, v);
+  (void)r;
+  return crc;
+}
+#if defined(__clang__)
+#    pragma clang attribute pop
+#elif defined(__GNUC__)
+#    pragma GCC pop_options
+#endif
 EOT
   then
     add_def AWS_HAVE_ARMv8_1
