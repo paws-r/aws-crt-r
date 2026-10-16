@@ -10,3 +10,4 @@
 ^src/.*\.dll$
 ^\.codegraph$
 ^\.claude$
+^cran-comments\.md$
