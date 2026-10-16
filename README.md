@@ -1,6 +1,7 @@
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/paws-r/aws-crt-r/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/paws-r/aws-crt-r/actions/workflows/R-CMD-check.yaml)
 [![Codecov test coverage](https://codecov.io/gh/paws-r/aws-crt-r/graph/badge.svg)](https://app.codecov.io/gh/paws-r/aws-crt-r)
+[![R-universe version](https://paws-r.r-universe.dev/awscrt/badges/version)](https://paws-r.r-universe.dev/awscrt)
 <!-- badges: end -->
 
 # awscrt
