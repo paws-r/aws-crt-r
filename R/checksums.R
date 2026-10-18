@@ -1,29 +1,11 @@
 #' CRC checksums
 #'
 #' Compute CRC32, CRC32C (Castagnoli) and CRC64NVME checksums with the
-#' `aws-checksums` library from the AWS Common Runtime. This is the R
-#' equivalent of the `awscrt.checksums` module in `aws-crt-python`.
+#' `aws-checksums` library from the AWS Common Runtime.
 #'
 #' Hardware instructions are used when the CPU supports them (SSE4.2,
 #' PCLMULQDQ and AVX-512 on x86-64, CRC and PMULL on arm64), otherwise a
 #' portable software implementation is used.
-#'
-#' @section Return value:
-#' By default the checksum is returned as a lower-case hexadecimal string
-#' (8 characters for `crc32()` and `crc32c()`, 16 for `crc64nvme()`). With
-#' `raw = TRUE` a raw vector in **big-endian** byte order is returned instead:
-#' 4 bytes for `crc32()` and `crc32c()`, 8 bytes for `crc64nvme()`. These are
-#' the bytes that are base64-encoded for the S3 `x-amz-checksum-*` headers, and
-#' they can be passed straight back as `previous`.
-#'
-#' @section Incremental hashing:
-#' Passing the raw result of one call as `previous` to the next continues the
-#' checksum, so `crc32(b, crc32(a, raw = TRUE))` equals `crc32(c(a, b))`.
-#' `previous` must be the raw form, so use `raw = TRUE` for intermediate steps.
-#'
-#' @section Debugging:
-#' Set `options(awscrt.force_software = TRUE)` to bypass hardware dispatch and
-#' use the software implementation, e.g. to compare the two code paths.
 #'
 #' @param x A raw vector, or a single string (converted to UTF-8 bytes).
 #' @param previous `NULL` (start a new checksum) or the raw checksum returned
@@ -92,7 +74,7 @@ crc64nvme <- function(x, previous = NULL, raw = FALSE) {
 #'
 #' @inheritParams checksums
 #' @param path Path to a file.
-#' @param chunk_size Number of bytes to read at a time.
+#' @param chunk_size Number of bytes to read at a time. Default chunk size (1 MiB)
 #' @return A hexadecimal string, or with `raw = TRUE` a big-endian raw vector,
 #'   see [checksums].
 #' @examples

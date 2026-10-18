@@ -22,7 +22,7 @@ by a previous call with \code{raw = TRUE}.}
 \item{raw}{If \code{FALSE} (the default), return the checksum as a hexadecimal
 string. If \code{TRUE}, return it as a big-endian raw vector.}
 
-\item{chunk_size}{Number of bytes to read at a time.}
+\item{chunk_size}{Number of bytes to read at a time. Default chunk size (1 MiB)}
 }
 \value{
 A hexadecimal string, or with \code{raw = TRUE} a big-endian raw vector,

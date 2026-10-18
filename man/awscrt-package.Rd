@@ -11,7 +11,9 @@ Computes CRC32, CRC32C and CRC64NVME checksums using the 'aws-checksums' library
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/awslabs/aws-crt-python}
+  \item \url{https://github.com/paws-r/aws-crt-r}
+  \item \url{https://paws-r.r-universe.dev/awscrt}
+  \item Report bugs at \url{https://github.com/paws-r/aws-crt-r/issues}
 }
 
 }

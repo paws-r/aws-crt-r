@@ -28,37 +28,13 @@ A hexadecimal string, or with \code{raw = TRUE} a big-endian raw vector
 }
 \description{
 Compute CRC32, CRC32C (Castagnoli) and CRC64NVME checksums with the
-\code{aws-checksums} library from the AWS Common Runtime. This is the R
-equivalent of the \code{awscrt.checksums} module in \code{aws-crt-python}.
+\code{aws-checksums} library from the AWS Common Runtime.
 }
 \details{
 Hardware instructions are used when the CPU supports them (SSE4.2,
 PCLMULQDQ and AVX-512 on x86-64, CRC and PMULL on arm64), otherwise a
 portable software implementation is used.
 }
-\section{Return value}{
-
-By default the checksum is returned as a lower-case hexadecimal string
-(8 characters for \code{crc32()} and \code{crc32c()}, 16 for \code{crc64nvme()}). With
-\code{raw = TRUE} a raw vector in \strong{big-endian} byte order is returned instead:
-4 bytes for \code{crc32()} and \code{crc32c()}, 8 bytes for \code{crc64nvme()}. These are
-the bytes that are base64-encoded for the S3 \verb{x-amz-checksum-*} headers, and
-they can be passed straight back as \code{previous}.
-}
-
-\section{Incremental hashing}{
-
-Passing the raw result of one call as \code{previous} to the next continues the
-checksum, so \code{crc32(b, crc32(a, raw = TRUE))} equals \code{crc32(c(a, b))}.
-\code{previous} must be the raw form, so use \code{raw = TRUE} for intermediate steps.
-}
-
-\section{Debugging}{
-
-Set \code{options(awscrt.force_software = TRUE)} to bypass hardware dispatch and
-use the software implementation, e.g. to compare the two code paths.
-}
-
 \examples{
 crc32c("123456789")
 crc64nvme("123456789")
