@@ -11,3 +11,4 @@
 ^\.codegraph$
 ^\.claude$
 ^cran-comments\.md$
+^air.toml
