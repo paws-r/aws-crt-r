@@ -1,6 +1,6 @@
 Package: awscrt
 Title: Hardware-Accelerated CRC Checksums from the AWS Common Runtime
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(
     person("Dyfan", "Jones", , "dyfan.r.jones@gmail.com", role = c("aut", "cre")),
     person("Amazon.com, Inc. or its affiliates", role = c("cph"),
