@@ -44,7 +44,6 @@ objs="awscrt.o init.o \
 aws-checksums/source/crc32.o aws-checksums/source/crc64.o aws-checksums/source/crc_sw.o \
 aws-checksums/source/crc64_sw.o aws-checksums/source/crc_util.o"
 cpuid_src=aws-c-common/source/arch/generic/cpuid
-target_rules=""
 impl="software"
 
 try_compile "" <<'EOT' && add_def AWS_HAVE_GCC_OVERFLOW_MATH_EXTENSIONS
@@ -59,7 +58,28 @@ elif [ "$arm64" = yes ]; then
 fi
 
 if [ "$use_ext" = yes ] && [ "$x86_64" = yes ]; then
-  AVX2="-mavx -mavx2"; AVX512="-mavx512f -mvpclmulqdq"; AVX512VL="-mavx512vl"; CLMUL="-mpclmul"; SSE42="-msse4.2"
+  # CPU features are enabled by pragmas (src/x86_target.h), not -m flags, which R CMD check
+  # flags as non-portable. Probe with the same pragma pattern as the build.
+  PRAGMA_BEGIN='#if defined(__clang__)
+#  pragma clang attribute push(__attribute__((target("avx512f,avx512vl,vpclmulqdq,pclmul,avx2,avx,sse4.2"))), apply_to = function)
+#elif defined(__GNUC__)
+#  pragma GCC push_options
+#  pragma GCC target("avx512f,avx512vl,vpclmulqdq,pclmul,avx2,avx,sse4.2")
+#endif
+'
+  PRAGMA_END='
+#if defined(__clang__)
+#  pragma clang attribute pop
+#elif defined(__GNUC__)
+#  pragma GCC pop_options
+#endif
+'
+  # try_x86 "<headers>" "<body>": compile a function that uses intrinsics under the pragma.
+  try_x86() {
+    printf '%s\n%s\n%s\n%s\n' "$1" "$PRAGMA_BEGIN" "$2" "$PRAGMA_END" > "$tmp/x.c"
+    printf 'int main(void) { return 0; }\n' >> "$tmp/x.c"
+    $CC $CPPFLAGS $CFLAGS -o "$tmp/x.out" "$tmp/x.c" >/dev/null 2>&1
+  }
 
   have_asm=no
   try_compile "" <<'EOT' && have_asm=yes
@@ -68,28 +88,16 @@ EOT
 
   [ "$have_asm" = yes ] && add_def AWS_HAVE_GCC_INLINE_ASM
   have_avx2=no; have_avx512=no; have_clmul=no
-  try_compile "$AVX2 $SSE42" <<'EOT' && have_avx2=yes
-#include <immintrin.h>
+  try_x86 '#include <immintrin.h>
 #include <emmintrin.h>
-#include <string.h>
-int main(void) { __m256i vec; memset(&vec, 0, sizeof(vec)); _mm256_shuffle_epi8(vec, vec);
-  _mm256_set_epi32(1,2,3,4,5,6,7,8); _mm256_permutevar8x32_epi32(vec, vec); return 0; }
-EOT
-  try_compile "$AVX512 $AVX512VL $AVX2 $CLMUL $SSE42" <<'EOT' && have_avx512=yes
-#include <immintrin.h>
-int main(void) { __m512 a = _mm512_setzero_ps(); (void)a; return 0; }
-EOT
-  try_compile "$AVX2 $CLMUL $SSE42" <<'EOT' && have_clmul=yes
-#include <wmmintrin.h>
-#include <emmintrin.h>
-int main(void) { __m128i a = _mm_setzero_si128(); __m128i b = _mm_setzero_si128();
-  __m128i r = _mm_clmulepi64_si128(a, b, 0x00); (void)r; return 0; }
-EOT
-  [ "$have_avx2" = yes ] && try_compile "$AVX2 $SSE42" <<'EOT' && add_def AWS_HAVE_MM256_EXTRACT_EPI64
-#include <immintrin.h>
-#include <string.h>
-int main(void) { __m256i vec; memset(&vec, 0, sizeof(vec)); return (int)_mm256_extract_epi64(vec, 2); }
-EOT
+#include <string.h>' 'int f(void) { __m256i vec; memset(&vec, 0, sizeof(vec)); _mm256_shuffle_epi8(vec, vec);
+  _mm256_set_epi32(1,2,3,4,5,6,7,8); _mm256_permutevar8x32_epi32(vec, vec); return 0; }' && have_avx2=yes
+  try_x86 '#include <immintrin.h>' 'int f(void) { __m512 a = _mm512_setzero_ps(); (void)a; return 0; }' && have_avx512=yes
+  try_x86 '#include <wmmintrin.h>
+#include <emmintrin.h>' 'int f(void) { __m128i a = _mm_setzero_si128(); __m128i b = _mm_setzero_si128();
+  __m128i r = _mm_clmulepi64_si128(a, b, 0x00); (void)r; return 0; }' && have_clmul=yes
+  [ "$have_avx2" = yes ] && try_x86 '#include <immintrin.h>
+#include <string.h>' 'int f(void) { __m256i vec; memset(&vec, 0, sizeof(vec)); return (int)_mm256_extract_epi64(vec, 2); }' && add_def AWS_HAVE_MM256_EXTRACT_EPI64
   [ "$have_avx2" = yes ] && add_def AWS_HAVE_AVX2_INTRINSICS
   [ "$have_avx512" = yes ] && add_def AWS_HAVE_AVX512_INTRINSICS
   [ "$have_clmul" = yes ] && add_def AWS_HAVE_CLMUL
@@ -99,28 +107,14 @@ EOT
   cpuid_src=aws-c-common/source/arch/intel/cpuid
   objs="$objs aws-c-common/source/arch/intel/asm/cpuid.o"
   p=aws-checksums/source/intel
-  if [ "$have_asm" = yes ]; then
-    objs="$objs $p/asm/crc32c_sse42_asm.o"
-    target_rules="$target_rules
-$p/asm/crc32c_sse42_asm.o: CFLAGS += $SSE42"
-  fi
-  uber="$SSE42"
+  [ "$have_asm" = yes ] && objs="$objs $p/asm/crc32c_sse42_asm.o"
   if [ "$have_avx512" = yes ]; then
-    uber="$AVX512 $AVX512VL $AVX2 $uber"
-    objs="$objs $p/intrin/crc64nvme_avx512.o"
-    target_rules="$target_rules
-$p/intrin/crc64nvme_avx512.o: CFLAGS += $AVX512 $AVX512VL $AVX2 $CLMUL $SSE42"
+    objs="$objs x86_crc64_avx512.o"
     impl="$impl, AVX-512"
   fi
-  [ "$have_clmul" = yes ] && { uber="$CLMUL $uber"; impl="$impl, PCLMULQDQ"; }
-  objs="$objs $p/intrin/crc32c_sse42_avx512.o"
-  target_rules="$target_rules
-$p/intrin/crc32c_sse42_avx512.o: CFLAGS += $uber"
-  if [ "$have_clmul" = yes ]; then
-    objs="$objs $p/intrin/crc64nvme_clmul.o"
-    target_rules="$target_rules
-$p/intrin/crc64nvme_clmul.o: CFLAGS += $AVX2 $CLMUL $SSE42"
-  fi
+  [ "$have_clmul" = yes ] && impl="$impl, PCLMULQDQ"
+  objs="$objs x86_crc32c_avx512.o"
+  [ "$have_clmul" = yes ] && objs="$objs x86_crc64_clmul.o"
   impl="$impl)"
 
 elif [ "$use_ext" = yes ] && [ "$arm64" = yes ] && { [ "$apple" = yes ] || [ "$linux" = yes ]; }; then
@@ -178,6 +172,5 @@ EOT
 fi
 
 sed -e "s|@OBJECTS@|$objs|" -e "s|@VISIBILITY@|$vis|" src/Makevars.in > src/Makevars
-printf "%s\n" "$target_rules" >> src/Makevars
 
 echo "awscrt: using $impl implementation"

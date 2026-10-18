@@ -12,3 +12,4 @@
 ^\.claude$
 ^cran-comments\.md$
 ^air.toml
+^CRAN-SUBMISSION$

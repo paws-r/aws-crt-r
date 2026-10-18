@@ -5,10 +5,10 @@ Authors@R: c(
     person("Dyfan", "Jones", , "dyfan.r.jones@gmail.com", role = c("aut", "cre")),
     person("Amazon.com, Inc. or its affiliates", role = c("cph"),
            comment = "Author of the bundled aws-checksums and aws-c-common libraries"))
-Description: Computes CRC32, CRC32C and CRC64NVME checksums using the
-    'aws-checksums' library from the AWS Common Runtime ('CRT'), with runtime
-    dispatch to hardware instructions (SSE4.2, PCLMULQDQ, AVX-512, ARMv8 CRC
-    and PMULL) and a portable software fallback.
+Description: Computes 'CRC32', 'CRC32C' and 'CRC64NVME' checksums using the
+    'aws-checksums' library from the 'AWS' Common Runtime, with runtime
+    dispatch to hardware instructions ('SSE4.2', 'PCLMULQDQ', 'AVX-512',
+    'ARMv8' 'CRC' and 'PMULL') and a portable software fallback.
 License: Apache License (>= 2)
 URL: https://github.com/paws-r/aws-crt-r, https://paws-r.r-universe.dev/awscrt
 BugReports: https://github.com/paws-r/aws-crt-r/issues
